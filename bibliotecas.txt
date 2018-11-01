@@ -1,0 +1,7 @@
+Bibliotecas 01.11.18
+
+Numpy
+pandas
+math
+matplotlib.pyplot
+sklearn

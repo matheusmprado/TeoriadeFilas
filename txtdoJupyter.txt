@@ -1,0 +1,133 @@
+import numpy as np
+import pandas as pd
+import math
+
+#dataframes
+log = pd.DataFrame(columns=["Lambda","Mi"])
+data = pd.DataFrame(columns=["Lambda","Mi"])
+w = pd.DataFrame(columns=["W"])
+wq = pd.DataFrame(columns=["WQ"])
+cnal = pd.DataFrame(columns=["Canal"])
+
+timefor = range(2)
+
+#função lambda e mi
+def e_lambda(x):
+    e_lambda = (x/360)
+    return e_lambda
+
+def e_mi(y):
+    e_mi = (60/y)
+    return e_mi
+
+def func_r(x,y):
+    result = x/y
+    return result
+
+#Funçoes MM1
+def func_w1(x,y):
+    w_critico = (1/(y-x))
+    return w_critico
+
+def func_wq1(x,y):
+    wq_critico = x /(y*(y-x))
+    return wq_critico
+
+
+#Funçoes MMC
+def func_soma(x,y):
+    listae=[]
+    for i in range(3):
+        if i <= (canal-1):
+            soma_result = (((x/y)**i)/math.factorial(i))
+            listae.append(soma_result)
+            aux = sum(listae)
+    if i <= x:
+        soma_result = 1/(y+1)
+        listae.append(soma_result)
+        aux = sum(listae)
+    return aux
+
+def func_p0(x,y):
+    parteCima = canal*((x/y)**canal)
+    parteBaixo = math.factorial(canal)*(canal-(x/y))
+    junto = (parteCima/parteBaixo+func_soma(x,y))**(-1)
+
+    return junto
+
+def func_wqc(x,y):
+    parteCima = ((func_r(x,y)**canal)*y)
+    parteBaixo = (math.factorial(canal-1)*((canal*y)-x)**2)
+    junto = (parteCima/parteBaixo)*(func_p0(x,y))
+
+    return junto
+
+def func_wc(x,y):
+    parteCima = (((func_r(x,y)**canal)*y))
+    parteBaixo = ((math.factorial(canal-1)*(((canal*y)-x)**2)))
+    junto = (1/y)+(parteCima/parteBaixo)*(func_p0(x,y))
+
+    return junto
+
+canal = int(input("Quantidades de Canal do Sistema: "))
+
+for i in timefor:
+        e1 = int(input("qtd clientes: "))
+        e2 = float(input("tempo de atendimento: "))
+    
+        #inserir dados no dataframe
+        data = data.append({'Lambda': e_lambda(e1),"Mi":e_mi(e2)}, ignore_index=True)
+        log = log.append({'Lambda': e1,"Mi":e2}, ignore_index=True)
+        cnal = cnal.append({"Canal":canal},ignore_index=True)
+        
+#append lambda and mi dataframe
+if canal > 1:
+    for j in timefor:
+        calc_lambda = data.iloc[j][0]       
+        calc_mi = data.iloc[j][1]        
+        w = w.append({"W": func_wc(calc_lambda,calc_mi)},ignore_index=True)
+        wq = wq.append({"WQ": func_wqc(calc_lambda,calc_mi)},ignore_index=True)
+else:    
+    #append w (calculo de tempo de serviço) no dataframe
+    for j in timefor:
+        calc_lambda = data.iloc[j][0]       
+        calc_mi = data.iloc[j][1]        
+        w = w.append({"W": (1/(calc_mi-calc_lambda))},ignore_index=True)
+        wq = wq.append({"WQ": (calc_lambda/(calc_mi*(calc_mi-calc_lambda)))},ignore_index=True)
+  
+
+#concatenando
+result = pd.concat([data, w, wq,cnal], axis=1) 
+
+#Definição do Lambda e Mi Critico
+crit_lambda = result.iloc[:,0].max()
+crit_mi = result.iloc[:,1][result.iloc[:,0].idxmax()]
+
+if canal > 1:
+    #Tempo médio de Serviço (Critico)
+    print("Tempo médio de Serviço: %2.2f Minutos" % (func_wc(crit_lambda,crit_mi)*60))
+    print("Tempo médio de Fila: %2.2f Minutos" % (func_wqc(crit_lambda,crit_mi)*60))
+
+else:
+    #Tempo médio de Serviço (Critico)
+    print("Tempo médio de Serviço: %2.2f Minutos" % (func_w1(crit_lambda,crit_mi)*60))
+    print("Tempo médio de Fila: %2.2f Minutos" % (func_wq1(crit_lambda,crit_mi)*60))
+
+#Random Regressor Tree 
+x = log.iloc[:,0:2].values
+y = result.iloc[:, 2:3].values
+
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test = train_test_split(x,y, test_size=0.2,random_state=0)
+
+from sklearn.ensemble import RandomForestRegressor
+regressor = RandomForestRegressor(n_estimators=300, random_state=0)
+regressor.fit(x_train,y_train.ravel())
+
+test= [[51,32]]
+
+y_pred = regressor.predict(test)
+
+print(y_pred)
+print(func_wc(e_lambda(51),e_mi(32)))
+print(func_w1(e_lambda(51),e_mi(32)))
